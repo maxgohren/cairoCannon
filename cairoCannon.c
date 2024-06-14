@@ -8,7 +8,7 @@
 #include <unistd.h> // For usleep
 #include <math.h>
 
-#define FRAMERATE 20
+#define FRAMERATE 30
 const float frame_duration = 1000000 / FRAMERATE;
 
 double gravity = 9.81;
@@ -16,8 +16,6 @@ double gravity = 9.81;
 struct Ball {	
 	double x;
 	double y;
-	double prevX;
-	double prevY;
 	double vx;
 	double vy;
 	double initialVelocity;
@@ -25,16 +23,56 @@ struct Ball {
 	int collision;
 };
 
-struct Ball ball = {
-					0,  // x
-					600,  // y
-					0,  // prevX
-					0,  // prevY
-					0,  // x velocity 
-					0,  // y velocity
-					20,  // init. velocity m/s
-					75, // angle in degrees
-					0};
+struct ballArray {
+	struct Ball ball[10];
+	int size;
+	int count;
+};
+
+void initBall(struct Ball *ball)
+{
+	ball->x = 0;
+	ball->y = 600;
+	ball->initialVelocity = 20;
+	ball->angle = 45;  
+	ball->collision = 0;
+	ball->vx = ball->initialVelocity * cos(ball->angle * M_PI / 180);
+	ball->vy = -(ball->initialVelocity * sin(ball->angle * M_PI / 180));
+}
+
+int addBall(struct ballArray *ballArray)
+{
+	if( ballArray->count < ballArray->size) {
+		ballArray->count += 1;
+	} else { 
+		return 1; 
+	}
+	return 0;
+}
+
+int removeBall(struct ballArray *ballArray)
+{
+	if( ballArray->count == 0) {
+		return 1;
+	} else {
+		ballArray->count -= 1;
+	}
+	return 0;
+}
+
+int initBallArray(struct ballArray *ba)
+{
+	for(int i = 0; i < ba->size; i++){
+		ba->ball[i].x = 0;
+		ba->ball[i].y = 600;
+		ba->ball[i].initialVelocity = 20;
+		ba->ball[i].angle = 45+i;  
+		ba->ball[i].collision = 0;
+		ba->ball[i].vx = ba->ball[i].initialVelocity * cos(ba->ball[i].angle * M_PI / 180);
+		ba->ball[i].vy = -(ba->ball[i].initialVelocity * sin(ba->ball[i].angle * M_PI / 180));
+	}
+	return 0;
+}
 
 
 int main() {
@@ -43,6 +81,15 @@ int main() {
     Window window;
     XEvent event;
     int screen;
+
+    struct Ball ballTest = { 0, 600, 0, 0, 20, 75, 0};
+    struct ballArray *ba;
+	//ba = (struct ballArray *)malloc(sizeof(ba));
+	//ba->size = 10;
+	//ba->count = 0;
+
+	initBall(&ballTest);
+	initBallArray(ba);
 
     // Open connection to the X server
     display = XOpenDisplay(NULL);
@@ -69,34 +116,33 @@ int main() {
                                                          DefaultVisual(display, screen), 800, 600);
     cairo_t *cr = cairo_create(surface);
 
-	// calculate ball velocities
-	ball.vx = ball.initialVelocity * cos(ball.angle * M_PI / 180);
-	ball.vy = -(ball.initialVelocity * sin(ball.angle * M_PI / 180));
-
     // Main event loop
     while (1) {
         // Check for events
-pending:
         while (XPending(display)) {
             XNextEvent(display, &event);
-
             if (event.type == KeyPress) {
 				KeySym key = XLookupKeysym(&event.xkey,0);
-				if(key != XK_space) {
-					// exit
-				   	goto cleanup; 
-				} else {
-					// reset
-					ball.x = 0;
-					ball.y = 600;
-					ball.vx = ball.initialVelocity * cos(ball.angle * M_PI / 180);
-					ball.vy = -(ball.initialVelocity * sin(ball.angle * M_PI / 180));
-					continue;
+				switch(key) {
+					case XK_space:
+						initBall(&ballTest);
+						break;
+					case XK_Escape:
+				   		goto seeyalater; 
+						break;
+					case XK_Up:
+						addBall(ba);
+					case XK_Down:
+						removeBall(ba);
+						break;
+					default:
+						continue;
             	}
         	}
 		}
+
 		// stop rolling
-		if (ball.y == 600 && ball.x != 0 ) { ball.vx = 0; goto pending; } 
+		if (ballTest.y == 600 && ballTest.x != 0 ) { initBall(&ballTest); } 
 
         // Clear the background
         cairo_set_source_rgb(cr, 1, 1, 1); // White
@@ -104,55 +150,61 @@ pending:
 
         // Draw the red circle
         cairo_set_source_rgb(cr, 1, 0, 0); // Red
-        cairo_arc(cr, ball.x, ball.y, 5, 0, 2 * 3.14159);
+        cairo_arc(cr, ballTest.x, ballTest.y, 5, 0, 2 * 3.14159);
         cairo_fill(cr);
 
 		// wait for 1/60th of a second
         usleep(frame_duration);
 
-		// print information to the screen about ball
+		// print information to the screen about ballTest
 		cairo_set_source_rgb(cr, 0, 0, 0);
 		cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 		cairo_set_font_size(cr, 20);
 		char posText[100];
-		char velText[100];
-		char grvText[100];
-		snprintf( posText, sizeof(posText), "Ball Position: (%.2f,     %.2f    )", ball.x, 600 - ball.y );
-		snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ball.vx, - ball.vy );
-		snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
+		snprintf( posText, sizeof(posText), "Ball Position: (%.2f,     %.2f    )", ballTest.x, 600 - ballTest.y );
 		cairo_move_to(cr, 400, 100);
 		cairo_show_text(cr,  posText);
+
+		char velText[100];
+		snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballTest.vx, - ballTest.vy );
 		cairo_move_to(cr, 400, 125);
 		cairo_show_text(cr,  velText);
+
+		char grvText[100];
+		snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
 		cairo_move_to(cr, 400, 150);
 		cairo_show_text(cr,  grvText);
+
+		char ballArrText[100];
+		snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ba->count);
+		cairo_move_to(cr, 400, 175);
+		cairo_show_text(cr,  ballArrText);
 
         // Flush the drawing operations
         cairo_surface_flush(surface);
         XFlush(display);
 
 		// gravity and other forces
-		//ball.vy += gravity / (FRAMERATE * FRAMERATE);
-		ball.vy += gravity / 10;
+		//ballTest.vy += gravity / (FRAMERATE * FRAMERATE);
+		ballTest.vy += gravity / 10;
 
-        // Update the position of the ball 
-		ball.x += ball.vx;
-		ball.y += ball.vy;
+        // Update the position of the ballTest 
+		ballTest.x += ballTest.vx;
+		ballTest.y += ballTest.vy;
 		
 		// bounds
-        if (ball.x > 800 ) { ball.x = 800; }
-        if (ball.x < 0   ) { ball.x = 0;   }
-		if (ball.y > 600 ) { ball.y = 600; }
-		if (ball.y < 0   ) { ball.y = 0;   }
+        if (ballTest.x > 800 ) { ballTest.x = 800; }
+        if (ballTest.x < 0   ) { ballTest.x = 0;   }
+		if (ballTest.y > 600 ) { ballTest.y = 600; }
+		if (ballTest.y < 0   ) { ballTest.y = 0;   }
 
-
-    }
-
-cleanup:
-    // Clean up
+	}
+seeyalater:	
+	// Clean up
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
     XCloseDisplay(display);
+	free(ba);
 
     return 0;
 }
