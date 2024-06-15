@@ -7,9 +7,10 @@
 #include <stdlib.h>
 #include <unistd.h> // For usleep
 #include <math.h>
+#include <time.h>
 
-#define FRAMERATE 30
-const float frame_duration = 1000000 / FRAMERATE;
+#define FRAMERATE 60
+const int frame_duration = 1000000 / FRAMERATE;
 
 double gravity = 9.81;
 
@@ -40,6 +41,17 @@ void initBall(struct Ball *ball)
 	ball->vy = -(ball->initialVelocity * sin(ball->angle * M_PI / 180));
 }
 
+void initBallArraySingle(struct Ball ba)
+{
+	ba.x = 0;
+	ba.y = 600;
+	ba.initialVelocity = 20;
+	ba.angle = 45;  
+	ba.collision = 0;
+	ba.vx = ba.initialVelocity * cos(ba.angle * M_PI / 180);
+	ba.vy = -(ba.initialVelocity * sin(ba.angle * M_PI / 180));
+}
+
 int addBall(struct ballArray *ballArray)
 {
 	if( ballArray->count < ballArray->size) {
@@ -47,6 +59,7 @@ int addBall(struct ballArray *ballArray)
 	} else { 
 		return 1; 
 	}
+	printf("adding ball to array: count = %d\n", ballArray->count);
 	return 0;
 }
 
@@ -57,22 +70,72 @@ int removeBall(struct ballArray *ballArray)
 	} else {
 		ballArray->count -= 1;
 	}
+	printf("removing ball from array: count = %d\n", ballArray->count);
 	return 0;
 }
 
 int initBallArray(struct ballArray *ba)
 {
+	srand(time(NULL));
+
 	for(int i = 0; i < ba->size; i++){
+	int randn = (rand() % 100); // random 2 digit
+	printf("Random number: %d\n", randn);
 		ba->ball[i].x = 0;
 		ba->ball[i].y = 600;
-		ba->ball[i].initialVelocity = 20;
-		ba->ball[i].angle = 45+i;  
+		ba->ball[i].initialVelocity = randn;
+		ba->ball[i].angle = randn;  
 		ba->ball[i].collision = 0;
 		ba->ball[i].vx = ba->ball[i].initialVelocity * cos(ba->ball[i].angle * M_PI / 180);
 		ba->ball[i].vy = -(ba->ball[i].initialVelocity * sin(ba->ball[i].angle * M_PI / 180));
 	}
 	return 0;
 }
+
+void drawScene(cairo_t *cr, struct Ball ballTest, struct ballArray *ballArray)
+{
+        // Clear the background
+        cairo_set_source_rgb(cr, 1, 1, 1); // White
+        cairo_paint(cr);
+
+        // Draw the red circle
+        cairo_set_source_rgb(cr, 1, 0, 0); // Red
+        cairo_arc(cr, ballTest.x, ballTest.y, 5, 0, 2 * 3.14159);
+        cairo_fill(cr);
+
+		// Draw all balls in the ball array
+		for(int i = 0; i < ballArray->count; i++){
+			//TODO set random colour for each ball each init or draw
+        	cairo_set_source_rgb(cr, 1, 0, 0); // Red
+        	cairo_arc(cr, ballArray->ball[i].x, ballArray->ball[i].y, 5, 0, 2 * 3.14159);
+        	cairo_fill(cr);
+		}
+
+		// print information to the screen about ballTest
+		cairo_set_source_rgb(cr, 0, 0, 0);
+		cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+		cairo_set_font_size(cr, 20);
+		char posText[100];
+		snprintf( posText, sizeof(posText), "Ball Position: (%.2f,     %.2f    )", ballTest.x, 600 - ballTest.y );
+		cairo_move_to(cr, 400, 100);
+		cairo_show_text(cr,  posText);
+
+		char velText[100];
+		snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballTest.vx, - ballTest.vy );
+		cairo_move_to(cr, 400, 125);
+		cairo_show_text(cr,  velText);
+
+		char grvText[100];
+		snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
+		cairo_move_to(cr, 400, 150);
+		cairo_show_text(cr,  grvText);
+
+		char ballArrText[100];
+		snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ballArray->count);
+		cairo_move_to(cr, 400, 175);
+		cairo_show_text(cr,  ballArrText);
+}
+
 
 
 int main() {
@@ -82,11 +145,12 @@ int main() {
     XEvent event;
     int screen;
 
+
     struct Ball ballTest = { 0, 600, 0, 0, 20, 75, 0};
     struct ballArray *ba;
-	//ba = (struct ballArray *)malloc(sizeof(ba));
-	//ba->size = 10;
-	//ba->count = 0;
+	ba = (struct ballArray*)malloc(sizeof(struct ballArray));
+    ba->size = 10;
+	ba->count = 10;
 
 	initBall(&ballTest);
 	initBallArray(ba);
@@ -119,19 +183,20 @@ int main() {
     // Main event loop
     while (1) {
         // Check for events
-        while (XPending(display)) {
+	   while (XPending(display)) {
             XNextEvent(display, &event);
             if (event.type == KeyPress) {
 				KeySym key = XLookupKeysym(&event.xkey,0);
 				switch(key) {
 					case XK_space:
-						initBall(&ballTest);
+						initBallArray(ba);
 						break;
 					case XK_Escape:
 				   		goto seeyalater; 
 						break;
 					case XK_Up:
 						addBall(ba);
+						break;
 					case XK_Down:
 						removeBall(ba);
 						break;
@@ -142,62 +207,37 @@ int main() {
 		}
 
 		// stop rolling
-		if (ballTest.y == 600 && ballTest.x != 0 ) { initBall(&ballTest); } 
+		
 
-        // Clear the background
-        cairo_set_source_rgb(cr, 1, 1, 1); // White
-        cairo_paint(cr);
-
-        // Draw the red circle
-        cairo_set_source_rgb(cr, 1, 0, 0); // Red
-        cairo_arc(cr, ballTest.x, ballTest.y, 5, 0, 2 * 3.14159);
-        cairo_fill(cr);
+		// draw the scene
+		drawScene(cr, ballTest, ba);
 
 		// wait for 1/60th of a second
         usleep(frame_duration);
-
-		// print information to the screen about ballTest
-		cairo_set_source_rgb(cr, 0, 0, 0);
-		cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-		cairo_set_font_size(cr, 20);
-		char posText[100];
-		snprintf( posText, sizeof(posText), "Ball Position: (%.2f,     %.2f    )", ballTest.x, 600 - ballTest.y );
-		cairo_move_to(cr, 400, 100);
-		cairo_show_text(cr,  posText);
-
-		char velText[100];
-		snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballTest.vx, - ballTest.vy );
-		cairo_move_to(cr, 400, 125);
-		cairo_show_text(cr,  velText);
-
-		char grvText[100];
-		snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
-		cairo_move_to(cr, 400, 150);
-		cairo_show_text(cr,  grvText);
-
-		char ballArrText[100];
-		snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ba->count);
-		cairo_move_to(cr, 400, 175);
-		cairo_show_text(cr,  ballArrText);
 
         // Flush the drawing operations
         cairo_surface_flush(surface);
         XFlush(display);
 
-		// gravity and other forces
-		//ballTest.vy += gravity / (FRAMERATE * FRAMERATE);
-		ballTest.vy += gravity / 10;
+		// updatePhysics()
+		for(int i = 0; i < ba->count; i++) {
+			// gravity
+			ba->ball[i].vy += gravity / 100;
 
-        // Update the position of the ballTest 
-		ballTest.x += ballTest.vx;
-		ballTest.y += ballTest.vy;
+			// velocity
+			ba->ball[i].x += ba->ball[i].vx;
+			ba->ball[i].y += ba->ball[i].vy;
+
+			// check bounds
+        	if (ba->ball[i].x > 800 ) { ba->ball[i].x = 800; }
+        	if (ba->ball[i].x < 0   ) { ba->ball[i].x = 0;   }
+			if (ba->ball[i].y > 600 ) { ba->ball[i].y = 600; }
+			if (ba->ball[i].y < 0   ) { ba->ball[i].y = 0;   }
+
+			// stop rolling
+			if (ba->ball[i].y == 600 && ba->ball[i].vx != 0 ) { initBallArraySingle(ba->ball[i]); } 
+		}
 		
-		// bounds
-        if (ballTest.x > 800 ) { ballTest.x = 800; }
-        if (ballTest.x < 0   ) { ballTest.x = 0;   }
-		if (ballTest.y > 600 ) { ballTest.y = 600; }
-		if (ballTest.y < 0   ) { ballTest.y = 0;   }
-
 	}
 seeyalater:	
 	// Clean up
