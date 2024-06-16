@@ -1,5 +1,4 @@
 #include <cairo/cairo.h>
-#include <cairo-svg.h>
 #include <cairo/cairo-xlib.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -8,49 +7,46 @@
 #include <unistd.h> // For usleep
 #include <math.h>
 #include <time.h>
+#include <assert.h>
 
 #define FRAMERATE 60
-const int frame_duration = 1000000 / FRAMERATE;
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
+#define MAX_BALLS 50
+#define STARTING_BALL_COUNT 2
+#define BALL_RADIUS 50
 
-double gravity = 9.81;
+const int frame_duration = 1000000 / FRAMERATE;
+double gravity = -9.81;
+double initialVelocity;
+
+int colours[10][3] = {  {255,  0,255} ,  // magenta
+			            {255,  0,  0} ,  // red
+				        {255,165,  0} ,  // orange
+				        {0  ,128,  0} ,  // green
+				        {128,  0,128} ,  // purple
+				        {255,255,  0} ,  // yellow
+				        {  0,255,255} ,  // aqua
+				        {  0,  0,128} ,  // navy
+				        {  0,  0,  0} ,  // black
+				        {255,155,  0} }; // raspberry
 
 struct Ball {	
-	double x;
-	double y;
+	volatile float x;
+	volatile float y;
 	double vx;
 	double vy;
-	double initialVelocity;
 	double angle; 
-	int collision;
+	float r;
+	float g;
+	float b;
 };
 
 struct ballArray {
-	struct Ball ball[10];
+	struct Ball ball[MAX_BALLS];
 	int size;
 	int count;
 };
-
-void initBall(struct Ball *ball)
-{
-	ball->x = 0;
-	ball->y = 600;
-	ball->initialVelocity = 20;
-	ball->angle = 45;  
-	ball->collision = 0;
-	ball->vx = ball->initialVelocity * cos(ball->angle * M_PI / 180);
-	ball->vy = -(ball->initialVelocity * sin(ball->angle * M_PI / 180));
-}
-
-void initBallArraySingle(struct Ball ba)
-{
-	ba.x = 0;
-	ba.y = 600;
-	ba.initialVelocity = 20;
-	ba.angle = 45;  
-	ba.collision = 0;
-	ba.vx = ba.initialVelocity * cos(ba.angle * M_PI / 180);
-	ba.vy = -(ba.initialVelocity * sin(ba.angle * M_PI / 180));
-}
 
 int addBall(struct ballArray *ballArray)
 {
@@ -77,63 +73,65 @@ int removeBall(struct ballArray *ballArray)
 int initBallArray(struct ballArray *ba)
 {
 	srand(time(NULL));
-
 	for(int i = 0; i < ba->size; i++){
-	int randn = (rand() % 100); // random 2 digit
-	printf("Random number: %d\n", randn);
-		ba->ball[i].x = 0;
-		ba->ball[i].y = 600;
-		ba->ball[i].initialVelocity = randn;
-		ba->ball[i].angle = randn;  
-		ba->ball[i].collision = 0;
-		ba->ball[i].vx = ba->ball[i].initialVelocity * cos(ba->ball[i].angle * M_PI / 180);
-		ba->ball[i].vy = -(ba->ball[i].initialVelocity * sin(ba->ball[i].angle * M_PI / 180));
+		float rand_c = (float)rand() / RAND_MAX;
+		int rand_col = rand() % 10;
+		int rand_x = rand() % (SCREEN_WIDTH - BALL_RADIUS*2) + BALL_RADIUS;
+		int rand_y = rand() % (SCREEN_WIDTH - BALL_RADIUS*2) + BALL_RADIUS;
+		int rand_vel = (rand() % 10);
+		int rand_ang = (rand() % 360);
+		ba->ball[i].x = rand_x;
+		ba->ball[i].y = rand_y;
+		ba->ball[i].angle = rand_ang;  
+		ba->ball[i].vx = rand_vel * cos(ba->ball[i].angle * M_PI / 180);
+		ba->ball[i].vy = rand_vel * sin(ba->ball[i].angle * M_PI / 180);
+		ba->ball[i].r = (float)colours[rand_col][0] / 255;
+		ba->ball[i].g = (float)colours[rand_col][1] / 255;
+		ba->ball[i].b = (float)colours[rand_col][2] / 255;
 	}
 	return 0;
 }
 
-void drawScene(cairo_t *cr, struct Ball ballTest, struct ballArray *ballArray)
+void drawScene(cairo_t *cr, struct ballArray *ba)
 {
-        // Clear the background
-        cairo_set_source_rgb(cr, 1, 1, 1); // White
-        cairo_paint(cr);
+    // Clear the background
+    cairo_set_source_rgb(cr, 1, 1, 1); // White
+    cairo_paint(cr);
 
-        // Draw the red circle
-        cairo_set_source_rgb(cr, 1, 0, 0); // Red
-        cairo_arc(cr, ballTest.x, ballTest.y, 5, 0, 2 * 3.14159);
-        cairo_fill(cr);
+	// Draw all balls in the ball array
+	for(int i = 0; i < ba->count; i++){
+		//TODO set random colour for each ball each init or draw
+    	cairo_set_source_rgb(cr, ba->ball[i].r, ba->ball[i].g, ba->ball[i].b);
+    	cairo_arc(cr, ba->ball[i].x, ba->ball[i].y, BALL_RADIUS, 0, 2 * 3.14159);
+    	cairo_fill(cr);
+	}
 
-		// Draw all balls in the ball array
-		for(int i = 0; i < ballArray->count; i++){
-			//TODO set random colour for each ball each init or draw
-        	cairo_set_source_rgb(cr, 1, 0, 0); // Red
-        	cairo_arc(cr, ballArray->ball[i].x, ballArray->ball[i].y, 5, 0, 2 * 3.14159);
-        	cairo_fill(cr);
-		}
+	/*	
+	// print information to the screen about balls
+	cairo_set_source_rgb(cr, 0, 0, 0);
+	cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(cr, 20);
 
-		// print information to the screen about ballTest
-		cairo_set_source_rgb(cr, 0, 0, 0);
-		cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-		cairo_set_font_size(cr, 20);
-		char posText[100];
-		snprintf( posText, sizeof(posText), "Ball Position: (%.2f,     %.2f    )", ballTest.x, 600 - ballTest.y );
-		cairo_move_to(cr, 400, 100);
-		cairo_show_text(cr,  posText);
+	char posText[100];
+	snprintf( posText, sizeof(posText), "Ball Position: (%.2f,%.2f)", ballArray->ball[0].x, SCREEN_HEIGHT - ballArray->ball[0].y );
+	cairo_move_to(cr, 0, 100);
+	cairo_show_text(cr,  posText);
 
-		char velText[100];
-		snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballTest.vx, - ballTest.vy );
-		cairo_move_to(cr, 400, 125);
-		cairo_show_text(cr,  velText);
+	char velText[100];
+	snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballArray->ball[0].vx, - ballArray->ball[0].vy );
+	cairo_move_to(cr, 0, -125);
+	cairo_show_text(cr,  velText);
 
-		char grvText[100];
-		snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
-		cairo_move_to(cr, 400, 150);
-		cairo_show_text(cr,  grvText);
+	char grvText[100];
+	snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
+	cairo_move_to(cr, 0, -150);
+	cairo_show_text(cr,  grvText);
 
-		char ballArrText[100];
-		snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ballArray->count);
-		cairo_move_to(cr, 400, 175);
-		cairo_show_text(cr,  ballArrText);
+	char ballArrText[100];
+	snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ballArray->count);
+	cairo_move_to(cr, 0, -175);
+	cairo_show_text(cr,  ballArrText);
+	*/
 }
 
 
@@ -144,15 +142,15 @@ int main() {
     Window window;
     XEvent event;
     int screen;
+	int i, j;
+    struct Ball tmp;
 
-
-    struct Ball ballTest = { 0, 600, 0, 0, 20, 75, 0};
+	assert(MAX_BALLS >= STARTING_BALL_COUNT);
     struct ballArray *ba;
 	ba = (struct ballArray*)malloc(sizeof(struct ballArray));
-    ba->size = 10;
-	ba->count = 10;
+    ba->size = MAX_BALLS;
+	ba->count = STARTING_BALL_COUNT;
 
-	initBall(&ballTest);
 	initBallArray(ba);
 
     // Open connection to the X server
@@ -166,7 +164,7 @@ int main() {
     root = RootWindow(display, screen);
 
     // Create a simple window
-    window = XCreateSimpleWindow(display, root, 10, 10, 800, 600, 1,
+    window = XCreateSimpleWindow(display, root, 1000, 10, SCREEN_WIDTH, SCREEN_HEIGHT, 1,
                                  BlackPixel(display, screen), WhitePixel(display, screen));
 
     // Select input events
@@ -177,8 +175,12 @@ int main() {
 
     // Create a Cairo surface and context for the Xlib window
     cairo_surface_t *surface = cairo_xlib_surface_create(display, window,
-                                                         DefaultVisual(display, screen), 800, 600);
+                                                         DefaultVisual(display, screen), SCREEN_WIDTH, SCREEN_HEIGHT);
     cairo_t *cr = cairo_create(surface);
+
+	// Move origin to bottom left corner of screen!
+	cairo_translate(cr, 0, SCREEN_HEIGHT);
+	cairo_scale(cr, 1, -1); // this makes the text mirrored too :$
 
     // Main event loop
     while (1) {
@@ -206,11 +208,8 @@ int main() {
         	}
 		}
 
-		// stop rolling
-		
-
 		// draw the scene
-		drawScene(cr, ballTest, ba);
+		drawScene(cr, ba);
 
 		// wait for 1/60th of a second
         usleep(frame_duration);
@@ -220,32 +219,46 @@ int main() {
         XFlush(display);
 
 		// updatePhysics()
-		for(int i = 0; i < ba->count; i++) {
+		for(i = 0; i < ba->count; i++) {
+
 			// gravity
-			ba->ball[i].vy += gravity / 100;
+			ba->ball[i].vy += -0.05;
 
 			// velocity
 			ba->ball[i].x += ba->ball[i].vx;
 			ba->ball[i].y += ba->ball[i].vy;
 
-			// check bounds
-        	if (ba->ball[i].x > 800 ) { ba->ball[i].x = 800; }
-        	if (ba->ball[i].x < 0   ) { ba->ball[i].x = 0;   }
-			if (ba->ball[i].y > 600 ) { ba->ball[i].y = 600; }
-			if (ba->ball[i].y < 0   ) { ba->ball[i].y = 0;   }
+			// wall reflections
+        	if (ba->ball[i].x >= SCREEN_WIDTH - BALL_RADIUS   || ba->ball[i].x <= 0 + BALL_RADIUS ) { ba->ball[i].vx *= -1; }
+			if (ba->ball[i].y >= SCREEN_HEIGHT - BALL_RADIUS  || ba->ball[i].y <= 0 + BALL_RADIUS) { ba->ball[i].vy *= -1; }
 
-			// stop rolling
-			if (ba->ball[i].y == 600 && ba->ball[i].vx != 0 ) { initBallArraySingle(ba->ball[i]); } 
-		}
+            // collision handling, uniform masses
+			for(j = 0; j < ba->count; j++){
+				if( i == j ) {
+					continue;
+				}
+                int diffx = SCREEN_WIDTH;  // max diff
+                int diffy = SCREEN_HEIGHT; // max diff
+                diffy = abs((int)ba->ball[i].x - (int)ba->ball[j].x); 
+                diffx = abs((int)ba->ball[i].y - (int)ba->ball[j].y); 
+				if( diffx < BALL_RADIUS && diffy < BALL_RADIUS ) {
+					// swap before and after
+					tmp.vx = ba->ball[i].vx;
+					tmp.vy = ba->ball[i].vy;
+					ba->ball[i].vx = ba->ball[j].vx;
+					ba->ball[i].vy = ba->ball[j].vy;
+					ba->ball[j].vx = tmp.vx;
+					ba->ball[j].vy = tmp.vy;
+		        }
+	        }
+        }
+    }
 		
-	}
-seeyalater:	
-	// Clean up
+seeyalater:	// Clean up
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
     XCloseDisplay(display);
 	free(ba);
-
     return 0;
 }
 
