@@ -46,7 +46,6 @@ struct Spring {
     float x_2;
     float y_2;
     float length;
-    float angle;  // RADIANS
     float k;      // spring constant k
 };
 
@@ -111,7 +110,7 @@ int initBallArray(struct ballArray *ba)
 	return 0;
 }
 
-void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp)
+void drawScene(cairo_t *cr, struct ballArray *ba)
 {
     // Clear the background
     cairo_set_source_rgb(cr, 1, 1, 1); // White
@@ -125,17 +124,32 @@ void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp)
     	cairo_fill(cr);
 	}
 
-    // draw springs
-    if(demo_mode == SPRING){
-        cairo_save(cr);
-        cairo_set_source_rgb(cr, 0,0,0);
-        cairo_translate(cr, sp->x_1, sp->y_1);
-        cairo_rotate(cr, sp->angle + M_PI_4); // starts sticking straight up, offset ccw by pi/4 to have pi/2 rad of rotation on screen
-        cairo_rectangle(cr, 0, 0, 10, sp->length - BALL_RADIUS);
-        cairo_fill(cr);
-        cairo_restore(cr); // stop from rotating entire screen
-    }
+	/*	
+	// print information to the screen about balls
+	cairo_set_source_rgb(cr, 0, 0, 0);
+	cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(cr, 20);
 
+	char posText[100];
+	snprintf( posText, sizeof(posText), "Ball Position: (%.2f,%.2f)", ballArray->ball[0].x, SCREEN_HEIGHT - ballArray->ball[0].y );
+	cairo_move_to(cr, 0, 100);
+	cairo_show_text(cr,  posText);
+
+	char velText[100];
+	snprintf( velText, sizeof(velText), "Ball Velocity: (%.2f m/s, %.2f m/s)", ballArray->ball[0].vx, - ballArray->ball[0].vy );
+	cairo_move_to(cr, 0, -125);
+	cairo_show_text(cr,  velText);
+
+	char grvText[100];
+	snprintf( grvText, sizeof(grvText), "Gravity: %.2f m/s^2", gravity);
+	cairo_move_to(cr, 0, -150);
+	cairo_show_text(cr,  grvText);
+
+	char ballArrText[100];
+	snprintf( ballArrText, sizeof(ballArrText), "Amount of balls in ball array: %d", ballArray->count);
+	cairo_move_to(cr, 0, -175);
+	cairo_show_text(cr,  ballArrText);
+	*/
 }
 
 void updatePhysics(struct ballArray *ba, struct Spring *spring)
@@ -161,7 +175,7 @@ void updatePhysics(struct ballArray *ba, struct Spring *spring)
              int diffx = SCREEN_WIDTH;  // max diff
              int diffy = SCREEN_HEIGHT; // max diff
              diffy = abs((int)ba->ball[i].x - (int)ba->ball[j].x); 
-             diffx = abs((int)ba->ball[i].y - (int)ba->ball[j].y);
+             diffx = abs((int)ba->ball[i].y - (int)ba->ball[j].y); 
 	    	if( diffx < BALL_RADIUS && diffy < BALL_RADIUS ) {
 	    		// swap before and after
 	    		tmp.vx = ba->ball[i].vx;
@@ -180,22 +194,13 @@ void updatePhysics(struct ballArray *ba, struct Spring *spring)
             ba->count = 1;
         }
         spring->x_1 = (float)SCREEN_WIDTH / 2;
-        spring->y_1 = SCREEN_HEIGHT;
+        spring->y_1 = 0; 
         spring->x_2 = ba->ball[0].x;
         spring->y_2 = ba->ball[0].y;
 
-        float spring_length_x = fabs(spring->x_1 - spring->x_2); 
-        float spring_length_y = fabs(spring->y_1 - spring->y_2); 
-        spring->length = sqrt( pow(spring_length_x, 2) + pow(spring_length_y, 2) );
-        //quadrant handling for cos
-        float ballAngle = 0;
-        if(ba->ball[0].x < SCREEN_WIDTH/2){
-            spring->angle = acos(spring_length_x / spring->length) + M_PI_4;
-        } else { 
-            spring->angle = acos(spring_length_y / spring->length) + M_PI_2;
-        }
-        //printf("spring angle in radians = %.02f\n", spring->angle);
-        //printf("ball angle in radians = %.02f\n", ballAngle);
+        float spring_length_x = spring->x_1 - spring->x_2; 
+        float spring_length_y = spring->y_1 - spring->y_2; 
+        spring->length = spring->x_
     }
     
 }
@@ -265,11 +270,9 @@ int main() {
 						break;
 					case XK_Up:
 						addBall(ba);
-                        if (spring->angle < 180) spring->angle+= 0.0174533;
 						break;
 					case XK_Down:
 						removeBall(ba);
-                        if (spring->angle > 0) spring->angle-= 0.0174533;
 						break;
                     case XK_1:
 						demo_mode = BALL_COLLISIONS;
@@ -277,7 +280,8 @@ int main() {
 						break;
                     case XK_2:
 						demo_mode = SPRING;
-                        ba->count = 1;
+                        // set one ball
+                        // set spring == 1;
                         printf("now starting spring demo\n");
 						break;
                     case XK_3:
@@ -290,7 +294,7 @@ int main() {
         	}
 		}
 
-		drawScene(cr, ba, spring);
+		drawScene(cr, ba);
 
         updatePhysics(ba, spring); // make diff update for each demo so we dont have to pass lots of stuff
 
