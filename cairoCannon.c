@@ -19,6 +19,7 @@
 const int frame_duration = 1000000 / FRAMERATE;
 double gravity = -9.81;
 double initialVelocity;
+float pendulum_angle;
 int i, j;
 struct Ball tmp;
 
@@ -48,7 +49,7 @@ struct Spring {
     float length;
     float angle;  // RADIANS
     float k;      // spring constant k
-};
+}spring, pendulum;
 
 struct Ball {	
 	volatile float x;
@@ -59,6 +60,7 @@ struct Ball {
 	float r;
 	float g;
 	float b;
+    int m;
 };
 
 struct ballArray {
@@ -107,11 +109,13 @@ int initBallArray(struct ballArray *ba)
 		ba->ball[i].r = (float)colours[rand_col][0] / 255;
 		ba->ball[i].g = (float)colours[rand_col][1] / 255;
 		ba->ball[i].b = (float)colours[rand_col][2] / 255;
+		ba->ball[i].m = 1;
 	}
 	return 0;
 }
 
-void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp)
+void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp, struct Spring *pd)
+
 {
     // Clear the background
     cairo_set_source_rgb(cr, 1, 1, 1); // White
@@ -130,20 +134,37 @@ void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp)
         cairo_save(cr);
         cairo_set_source_rgb(cr, 0,0,0);
         cairo_translate(cr, sp->x_1, sp->y_1);
-        cairo_rotate(cr, sp->angle + M_PI_4); // starts sticking straight up, offset ccw by pi/4 to have pi/2 rad of rotation on screen
+        cairo_rotate(cr, sp->angle + M_PI_4 + 0.01); // starts sticking straight up, offset ccw by pi/4 to have pi/2 rad of rotation on screen
         cairo_rectangle(cr, 0, 0, 10, sp->length - BALL_RADIUS);
         cairo_fill(cr);
         cairo_restore(cr); // stop from rotating entire screen
     }
 
+    // draw springs
+    if(demo_mode == PENDULUM){
+        static int count = 0;
+        cairo_save(cr);
+        cairo_set_source_rgb(cr, 0,0,0);
+        cairo_translate(cr, pd->x_1, pd->y_1); 
+        // +PI/4 to bring into 2nd and 3rd quadrant
+        // + 0.01 for some manual massaging for visuals
+        cairo_rotate(cr, pd->angle + M_PI_4);
+        cairo_rectangle(cr, 0, 0, 10, pd->length - BALL_RADIUS);
+        cairo_fill(cr);
+        cairo_restore(cr); // stop from rotating entire screen
+    }
 }
 
-void updatePhysics(struct ballArray *ba, struct Spring *spring)
+void updatePhysics(struct ballArray *ba, struct Spring *sp, struct Spring *pd)
 {   
     // ball handling
     for(i = 0; i < ba->count; i++) { 
 	    // gravity
 	    ba->ball[i].vy += -0.05;
+        
+        // pendulum physics 
+        //ba->ball[0].vx += sp->length * cos(pendulum_angle); // * gravity as well
+        //ba->ball[0].vy += sp->length * sin(pendulum_angle); // * gravity as well
 
 	    // velocity
 	    ba->ball[i].x += ba->ball[i].vx;
@@ -174,28 +195,63 @@ void updatePhysics(struct ballArray *ba, struct Spring *spring)
         }
     }
 
-    //spring handling
+    // spring handling
     if(demo_mode == SPRING){
         if(ba->count != 1){
             ba->count = 1;
         }
-        spring->x_1 = (float)SCREEN_WIDTH / 2;
-        spring->y_1 = SCREEN_HEIGHT;
-        spring->x_2 = ba->ball[0].x;
-        spring->y_2 = ba->ball[0].y;
+        sp->x_1 = (float)SCREEN_WIDTH / 2;
+        sp->y_1 = SCREEN_HEIGHT;
+        sp->x_2 = ba->ball[0].x;
+        sp->y_2 = ba->ball[0].y;
 
-        float spring_length_x = fabs(spring->x_1 - spring->x_2); 
-        float spring_length_y = fabs(spring->y_1 - spring->y_2); 
-        spring->length = sqrt( pow(spring_length_x, 2) + pow(spring_length_y, 2) );
+        float sp_length_x = fabs(sp->x_1 - sp->x_2); 
+        float sp_length_y = fabs(sp->y_1 - sp->y_2); 
+        sp->length = sqrt( pow(sp_length_x, 2) + pow(sp_length_y, 2) );
         //quadrant handling for cos
-        float ballAngle = 0;
         if(ba->ball[0].x < SCREEN_WIDTH/2){
-            spring->angle = acos(spring_length_x / spring->length) + M_PI_4;
+            sp->angle = acos(sp_length_x / sp->length) + M_PI_4;
         } else { 
-            spring->angle = acos(spring_length_y / spring->length) + M_PI_2;
+            sp->angle = acos(sp_length_y / sp->length) + 3 * M_PI_4;
         }
-        //printf("spring angle in radians = %.02f\n", spring->angle);
-        //printf("ball angle in radians = %.02f\n", ballAngle);
+
+        // spring constant k applies force F = kx where x is parallel distance along spring
+    }
+
+    // pendulum, constrained motion
+    if(demo_mode == PENDULUM){
+        if(ba->count != 1){
+            ba->count = 1;
+        }
+        pd->x_1 = (float)SCREEN_WIDTH / 2;
+        pd->y_1 = SCREEN_HEIGHT;
+        pd->x_2 = ba->ball[0].x;
+        pd->y_2 = ba->ball[0].y;
+
+
+        float pd_length_x = fabs(pd->x_1 - pd->x_2); 
+        float pd_length_y = fabs(pd->y_1 - pd->y_2); 
+        pd->length = sqrt( pow(pd_length_x, 2) + pow(pd_length_y, 2) );
+
+        //quadrant handling for cos
+        if(ba->ball[0].x < (float)SCREEN_WIDTH/2){
+            pd->angle = acos(pd_length_x / pd->length) + M_PI_4;
+            pendulum_angle = pd->angle - 3 * M_PI_4;
+            printf("ball vx %.02f vy %.02f\n", 0.01 * pd->length * cos(pendulum_angle), 0.01 * pd->length * sin(pendulum_angle) );
+            ba->ball[0].vx = 0.01 * pd->length * cos(pendulum_angle);
+            ba->ball[0].vy = 0.01 * pd->length * sin(pendulum_angle);
+        } else if(ba->ball[0].x > (float)SCREEN_WIDTH/2){
+            pd->angle = acos(pd_length_y / pd->length) + 3 * M_PI_4;
+            pendulum_angle = pd->angle - 3 * M_PI_4;
+            printf("ball vx %.02f vy %.02f\n", 0.01 * pd->length * -cos(pendulum_angle), 0.01 * pd->length * -sin(pendulum_angle) );
+            ba->ball[0].vx = 0.01 * -pd->length * cos(pendulum_angle);
+            ba->ball[0].vy = 0.01 * -pd->length * sin(pendulum_angle);
+        } else {
+            pd->angle = acos(pd_length_y / pd->length) + 3 * M_PI_4;
+            pendulum_angle = pd->angle - 3 * M_PI_4;
+            printf("ball vx 0, vy 0\n");
+            ba->ball[0].vy = 0;
+        }
     }
     
 }
@@ -211,6 +267,9 @@ int main() {
     //init physics objects for all demos
     struct Spring *spring;
     spring = (struct Spring *)malloc(sizeof(struct Spring));
+
+    struct Spring *pendulum;
+    pendulum = (struct Spring *)malloc(sizeof(struct Spring));
 
 	assert(MAX_BALLS >= STARTING_BALL_COUNT);
     struct ballArray *ba;
@@ -264,13 +323,25 @@ int main() {
 				   		goto cleanup; 
 						break;
 					case XK_Up:
-						addBall(ba);
-                        if (spring->angle < 180) spring->angle+= 0.0174533;
+						//addBall(ba);
+                        if (spring->angle < 2 * M_PI) spring->angle+= 0.0174533;
 						break;
 					case XK_Down:
-						removeBall(ba);
+						//removeBall(ba);
                         if (spring->angle > 0) spring->angle-= 0.0174533;
 						break;
+                    case XK_h:
+                        ba->ball[0].x-=10;
+                        break;
+                    case XK_j:
+                        ba->ball[0].y-=10;
+                        break;
+                    case XK_k:
+                        ba->ball[0].y+=10;
+                        break;
+                    case XK_l:
+                        ba->ball[0].x+=10;
+                        break;
                     case XK_1:
 						demo_mode = BALL_COLLISIONS;
                         printf("now starting ball collisions demo\n");
@@ -290,9 +361,9 @@ int main() {
         	}
 		}
 
-		drawScene(cr, ba, spring);
+		drawScene(cr, ba, spring, pendulum);
 
-        updatePhysics(ba, spring); // make diff update for each demo so we dont have to pass lots of stuff
+        updatePhysics(ba, spring, pendulum); // make diff update for each demo so we dont have to pass lots of stuff
 
         usleep(frame_duration);
 
