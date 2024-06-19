@@ -15,6 +15,7 @@
 #define MAX_BALLS 50
 #define STARTING_BALL_COUNT 2
 #define BALL_RADIUS 50
+#define BALL_DIAMETER 1.75*BALL_RADIUS
 
 const int frame_duration = 1000000 / FRAMERATE;
 double gravity = -9.81;
@@ -183,7 +184,7 @@ void updatePhysics(struct ballArray *ba, struct Spring *sp, struct Spring *pd)
              int diffy = SCREEN_HEIGHT; // max diff
              diffy = abs((int)ba->ball[i].x - (int)ba->ball[j].x); 
              diffx = abs((int)ba->ball[i].y - (int)ba->ball[j].y);
-	    	if( diffx < BALL_RADIUS && diffy < BALL_RADIUS ) {
+	    	if( diffx < BALL_DIAMETER && diffy < BALL_DIAMETER ){
 	    		// swap before and after
 	    		tmp.vx = ba->ball[i].vx;
 	    		tmp.vy = ba->ball[i].vy;
@@ -323,11 +324,11 @@ int main() {
 				   		goto cleanup; 
 						break;
 					case XK_Up:
-						//addBall(ba);
+						addBall(ba);
                         if (spring->angle < 2 * M_PI) spring->angle+= 0.0174533;
 						break;
 					case XK_Down:
-						//removeBall(ba);
+						removeBall(ba);
                         if (spring->angle > 0) spring->angle-= 0.0174533;
 						break;
                     case XK_h:
