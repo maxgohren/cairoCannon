@@ -1,6 +1,9 @@
-make:
+SRC= cairoCannon.c keyboard.c window.c draw.c physics.c
+INCLUDE= 
+
+make: 
 	@clear
-	gcc -o cannon cairoCannon.c `pkg-config --cflags --libs cairo cairo-svg` -lX11 -lm
+	gcc -o cannon ${SRC} `pkg-config --cflags --libs cairo cairo-svg` -lX11 -lm
 	ctags *
 	./cannon
 
