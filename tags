@@ -1,0 +1,67 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+BALL_COLLISIONS	cairoCannon.c	/^	BALL_COLLISIONS = 0,$/;"	e	enum:demo_mode	file:
+BALL_DIAMETER	cairoCannon.h	7;"	d
+BALL_RADIUS	cairoCannon.h	6;"	d
+Ball	cairoCannon.h	/^struct Ball {	$/;"	s
+FRAMERATE	cairoCannon.h	1;"	d
+MAX_BALLS	cairoCannon.h	4;"	d
+PENDULUM	cairoCannon.c	/^	PENDULUM$/;"	e	enum:demo_mode	file:
+Pendulum	cairoCannon.h	/^struct Pendulum {$/;"	s
+SCREEN_HEIGHT	cairoCannon.h	3;"	d
+SCREEN_WIDTH	cairoCannon.h	2;"	d
+SPRING	cairoCannon.c	/^	SPRING,$/;"	e	enum:demo_mode	file:
+STARTING_BALL_COUNT	cairoCannon.h	5;"	d
+Spring	cairoCannon.h	/^struct Spring {$/;"	s
+accel	cairoCannon.h	/^	float accel;$/;"	m	struct:Pendulum
+addBall	cairoCannon.c	/^int addBall(struct ballArray *ballArray)$/;"	f
+angle	cairoCannon.h	/^	double angle; $/;"	m	struct:Ball
+angle	cairoCannon.h	/^    float angle;  \/\/ RADIANS$/;"	m	struct:Pendulum
+angle	cairoCannon.h	/^    float angle;  \/\/ RADIANS$/;"	m	struct:Spring
+b	cairoCannon.h	/^	float b;$/;"	m	struct:Ball
+ba	cairoCannon.c	/^struct ballArray *ba;$/;"	v	typeref:struct:ballArray
+ball	cairoCannon.h	/^	struct Ball ball[MAX_BALLS];$/;"	m	struct:ballArray	typeref:struct:ballArray::Ball
+ballArray	cairoCannon.h	/^struct ballArray {$/;"	s
+colours	cairoCannon.c	/^int colours[10][3] = {  {255,  0,255} ,  \/\/ magenta$/;"	v
+count	cairoCannon.h	/^	int count;$/;"	m	struct:ballArray
+demo_mode	cairoCannon.c	/^enum demo_mode {$/;"	g	file:
+demo_mode	cairoCannon.c	/^}demo_mode = 0;$/;"	v	typeref:enum:demo_mode
+drawScene	cairoCannon.c	/^void drawScene(cairo_t *cr, struct ballArray *ba, struct Spring *sp, struct Pendulum *pd)$/;"	f
+exit_flag	cairoCannon.c	/^int exit_flag = 0;$/;"	v
+frame_duration	cairoCannon.c	/^const int frame_duration = 1000000 \/ FRAMERATE;$/;"	v
+g	cairoCannon.h	/^	float g;$/;"	m	struct:Ball
+gravity	cairoCannon.c	/^double gravity = -9.81 \/ FRAMERATE;$/;"	v
+i	cairoCannon.c	/^int i, j;$/;"	v
+initBallArray	cairoCannon.c	/^int initBallArray(struct ballArray *ba)$/;"	f
+initialVelocity	cairoCannon.c	/^double initialVelocity;$/;"	v
+j	cairoCannon.c	/^int i, j;$/;"	v
+k	cairoCannon.h	/^    float k;      \/\/ spring constant k$/;"	m	struct:Spring
+length	cairoCannon.h	/^    float length;$/;"	m	struct:Pendulum
+length	cairoCannon.h	/^    float length;$/;"	m	struct:Spring
+m	cairoCannon.h	/^    int m;$/;"	m	struct:Ball
+main	cairoCannon.c	/^int main() {$/;"	f
+pd	cairoCannon.c	/^struct Pendulum *pd;$/;"	v	typeref:struct:Pendulum
+poll_x_event	cairoCannon.c	/^void poll_x_event(XEvent event) $/;"	f
+r	cairoCannon.h	/^	float r;$/;"	m	struct:Ball
+removeBall	cairoCannon.c	/^int removeBall(struct ballArray *ballArray)$/;"	f
+size	cairoCannon.h	/^	int size;$/;"	m	struct:ballArray
+spring	cairoCannon.c	/^struct Spring *spring;$/;"	v	typeref:struct:Spring
+swap_ball	cairoCannon.c	/^static void swap_ball(struct Ball *ball1, struct Ball *ball2)$/;"	f	file:
+updatePhysics	cairoCannon.c	/^void updatePhysics(struct ballArray *ba, struct Spring *sp, struct Pendulum *pd)$/;"	f
+vel	cairoCannon.h	/^	float vel;$/;"	m	struct:Pendulum
+vx	cairoCannon.h	/^	double vx;$/;"	m	struct:Ball
+vy	cairoCannon.h	/^	double vy;$/;"	m	struct:Ball
+x	cairoCannon.h	/^	volatile float x;$/;"	m	struct:Ball
+x_1	cairoCannon.h	/^    float x_1;$/;"	m	struct:Pendulum
+x_1	cairoCannon.h	/^    float x_1;$/;"	m	struct:Spring
+x_2	cairoCannon.h	/^    float x_2;$/;"	m	struct:Pendulum
+x_2	cairoCannon.h	/^    float x_2;$/;"	m	struct:Spring
+y	cairoCannon.h	/^	volatile float y;$/;"	m	struct:Ball
+y_1	cairoCannon.h	/^    float y_1;$/;"	m	struct:Pendulum
+y_1	cairoCannon.h	/^    float y_1;$/;"	m	struct:Spring
+y_2	cairoCannon.h	/^    float y_2;$/;"	m	struct:Pendulum
+y_2	cairoCannon.h	/^    float y_2;$/;"	m	struct:Spring
